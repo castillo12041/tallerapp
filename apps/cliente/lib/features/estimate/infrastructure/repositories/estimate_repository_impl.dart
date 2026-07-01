@@ -1,10 +1,11 @@
 import 'package:taller_cliente/features/estimate/domain/entities/public_estimate.dart';
 import 'package:taller_cliente/features/estimate/domain/repositories/estimate_repository.dart';
 import 'package:taller_cliente/features/estimate/infrastructure/datasources/estimate_api_datasource.dart';
+import 'package:taller_cliente/features/estimate/infrastructure/models/public_estimate_model.dart';
 
 class EstimateRepositoryImpl implements EstimateRepository {
-  const EstimateRepositoryImpl({EstimateApiDatasource? datasource})
-      : _datasource = datasource ?? const EstimateApiDatasource();
+  EstimateRepositoryImpl({EstimateApiDatasource? datasource})
+      : _datasource = datasource ?? EstimateApiDatasource();
 
   final EstimateApiDatasource _datasource;
 

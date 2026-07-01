@@ -4,7 +4,7 @@ import 'package:taller_cliente/core/network/api_exception.dart';
 import 'package:taller_cliente/features/inspection_report/infrastructure/models/qr_verification_model.dart';
 
 class InspectionApiDatasource {
-  const InspectionApiDatasource({ApiClient? client})
+  InspectionApiDatasource({ApiClient? client})
       : _client = client ?? ApiClient.instance;
 
   final ApiClient _client;

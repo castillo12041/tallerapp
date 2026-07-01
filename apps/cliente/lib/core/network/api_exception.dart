@@ -31,3 +31,8 @@ final class NetworkException extends ApiException {
 final class ServerException extends ApiException {
   const ServerException(super.message);
 }
+
+/// Error inesperado no clasificado.
+final class UnknownException extends ApiException {
+  const UnknownException(super.message);
+}

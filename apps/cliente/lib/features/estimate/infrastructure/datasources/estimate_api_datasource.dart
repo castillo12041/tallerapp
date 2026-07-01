@@ -4,7 +4,7 @@ import 'package:taller_cliente/core/network/api_exception.dart';
 import 'package:taller_cliente/features/estimate/infrastructure/models/public_estimate_model.dart';
 
 class EstimateApiDatasource {
-  const EstimateApiDatasource({ApiClient? client})
+  EstimateApiDatasource({ApiClient? client})
       : _client = client ?? ApiClient.instance;
 
   final ApiClient _client;

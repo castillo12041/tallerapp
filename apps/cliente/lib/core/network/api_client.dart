@@ -49,7 +49,8 @@ class _ExceptionInterceptor extends Interceptor {
       return;
     }
 
-    switch (statusCode) {
+    final code = statusCode ?? 0;
+    switch (code) {
       case 404:
         handler.reject(_wrap(err, NotFoundException(detail ?? 'Enlace no encontrado.')));
       case 409:
@@ -57,7 +58,7 @@ class _ExceptionInterceptor extends Interceptor {
       case >= 500:
         handler.reject(_wrap(err, ServerException('Error del servidor. Intenta más tarde.')));
       default:
-        handler.reject(_wrap(err, ApiException(detail ?? 'Error inesperado.')));
+        handler.reject(_wrap(err, UnknownException(detail ?? 'Error inesperado.')));
     }
   }
 
