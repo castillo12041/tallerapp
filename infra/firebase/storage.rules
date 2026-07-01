@@ -1,0 +1,117 @@
+rules_version = '2';
+
+// =============================================================================
+// Taller Inspección — Firebase Storage Security Rules
+// Proyecto: taller-85514
+//
+// Estructura de paths:
+//   tenants/{tenantId}/photos/{inspectionId}/{fileName}
+//   tenants/{tenantId}/signatures/{inspectionId}/{fileName}
+//   tenants/{tenantId}/audio/{inspectionId}/{fileName}
+//   tenants/{tenantId}/pdfs/{fileName}
+//   tenants/{tenantId}/branding/{fileName}
+//   public/{fileName}  ← PDFs con URL firmada para acceso público
+// =============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function belongsToTenant(tenantId) {
+      return isAuthenticated()
+        && request.auth.token.get('tenantId', '') == tenantId
+        && tenantId != '';
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated()
+        && request.auth.token.get('role', '') == 'superadmin';
+    }
+
+    function hasPermission(permission) {
+      return isAuthenticated()
+        && permission in request.auth.token.get('permissions', []);
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/(jpeg|jpg|png|webp|gif)');
+    }
+
+    function isAudio() {
+      return request.resource.contentType.matches('audio/(aac|mp4|mpeg|ogg|wav|webm)');
+    }
+
+    function maxSizeMB(mb) {
+      return request.resource.size <= mb * 1024 * 1024;
+    }
+
+    // Denegar por defecto todo el bucket de tenants
+    match /tenants/{tenantId}/{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // Fotos de inspección — máx 10 MB
+    match /tenants/{tenantId}/photos/{inspectionId}/{fileName} {
+      allow read: if belongsToTenant(tenantId) || isSuperAdmin();
+      allow create: if belongsToTenant(tenantId)
+        && hasPermission('inspections:update')
+        && isImage()
+        && maxSizeMB(10);
+      allow update: if false;
+      allow delete: if (belongsToTenant(tenantId) && hasPermission('inspections:update'))
+        || isSuperAdmin();
+    }
+
+    // Firmas digitales — máx 2 MB
+    match /tenants/{tenantId}/signatures/{inspectionId}/{fileName} {
+      allow read: if belongsToTenant(tenantId) || isSuperAdmin();
+      allow create: if belongsToTenant(tenantId)
+        && hasPermission('inspections:update')
+        && isImage()
+        && maxSizeMB(2);
+      allow update: if false;
+      allow delete: if (belongsToTenant(tenantId) && hasPermission('inspections:update'))
+        || isSuperAdmin();
+    }
+
+    // Notas de audio — máx 25 MB
+    match /tenants/{tenantId}/audio/{inspectionId}/{fileName} {
+      allow read: if belongsToTenant(tenantId) || isSuperAdmin();
+      allow create: if belongsToTenant(tenantId)
+        && hasPermission('inspections:update')
+        && isAudio()
+        && maxSizeMB(25);
+      allow update: if false;
+      allow delete: if (belongsToTenant(tenantId) && hasPermission('inspections:update'))
+        || isSuperAdmin();
+    }
+
+    // PDFs generados — escritura solo desde backend (Admin SDK)
+    match /tenants/{tenantId}/pdfs/{fileName} {
+      allow read: if belongsToTenant(tenantId) || isSuperAdmin();
+      allow write: if false;
+    }
+
+    // Branding del taller — lectura pública para portal cliente y emails.
+    // NOTA: isImage() y maxSizeMB() aplican a TODOS los que pueden escribir,
+    // incluyendo SuperAdmin. Los paréntesis son críticos aquí.
+    match /tenants/{tenantId}/branding/{fileName} {
+      allow read: if true;
+      allow create, update: if (
+        (belongsToTenant(tenantId) && hasPermission('tenant:manage'))
+        || isSuperAdmin()
+      ) && isImage() && maxSizeMB(5);
+      allow delete: if (belongsToTenant(tenantId) && hasPermission('tenant:manage'))
+        || isSuperAdmin();
+    }
+
+    // PDFs públicos con URL firmada generada por el backend
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

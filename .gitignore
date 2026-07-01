@@ -1,0 +1,114 @@
+# ============================================================
+# Python / FastAPI
+# ============================================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.log
+
+# Nunca subir credenciales ni variables de entorno reales
+.env
+!.env.example
+firebase_credentials.json
+
+# Flutter dart-defines (contienen firebase keys y API URLs con secretos)
+**/.dart-defines.json
+**/.dart-defines.*.json
+!**/.dart-defines.example.json
+
+# ============================================================
+# Flutter / Dart
+# ============================================================
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+**/build/
+
+# Archivos generados por build_runner (se regeneran con dart run build_runner build)
+**/*.g.dart
+**/*.freezed.dart
+**/*.gr.dart
+
+# ============================================================
+# Firebase
+# ============================================================
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+storage-debug.log
+
+# .firebaserc SÍ se commitea — mapea alias a proyectos Firebase (no es secreto)
+# firebase.json SÍ se commitea — configuración de hosting y emuladores
+
+# Credenciales de Firebase Admin (backend) — NUNCA commitear
+*service_account*.json
+*serviceAccount*.json
+*firebase-adminsdk*.json
+
+# ============================================================
+# IDEs
+# ============================================================
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.history/
+
+# ============================================================
+# OS
+# ============================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ============================================================
+# Docker
+# ============================================================
+.docker-data/
+
+# ============================================================
+# Node (Firebase CLI, herramientas)
+# ============================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================================
+# Secretos y archivos locales
+# ============================================================
+*.local
+*.secret
+.secrets/
+secrets/
+
+# ============================================================
+# Misceláneos
+# ============================================================
+*.bak
+*.swp
+*.tmp
+*.orig

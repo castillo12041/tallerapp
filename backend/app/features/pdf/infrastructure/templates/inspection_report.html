@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Informe de Inspección {{ inspection.number }}</title>
+<style>
+  /* ── Reset y tipografía ─────────────────────────────────────── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11px;
+    color: #212121;
+    background: #fff;
+  }
+  @page {
+    size: A4;
+    margin: 15mm 12mm 18mm 12mm;
+    @bottom-center {
+      content: "Página " counter(page) " de " counter(pages);
+      font-size: 9px;
+      color: #9e9e9e;
+    }
+  }
+
+  /* ── Cabecera ───────────────────────────────────────────────── */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 3px solid {{ branding.primary_color }};
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+  }
+  .header-brand { flex: 1; }
+  .brand-name {
+    font-size: 18px;
+    font-weight: bold;
+    color: {{ branding.primary_color }};
+    margin-bottom: 3px;
+  }
+  .brand-contact {
+    font-size: 9px;
+    color: #616161;
+    line-height: 1.5;
+  }
+  .header-logo { max-height: 60px; max-width: 160px; }
+  .header-report { text-align: right; }
+  .report-title {
+    font-size: 13px;
+    font-weight: bold;
+    color: {{ branding.primary_color }};
+  }
+  .report-number {
+    font-size: 11px;
+    font-weight: bold;
+    color: #424242;
+    margin-top: 2px;
+  }
+  .report-date { font-size: 9px; color: #757575; margin-top: 2px; }
+
+  /* ── Panel de información ───────────────────────────────────── */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .info-box {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 8px 10px;
+  }
+  .info-box-title {
+    font-size: 9px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: {{ branding.primary_color }};
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+  }
+  .info-row {
+    display: flex;
+    margin-bottom: 2px;
+  }
+  .info-label {
+    width: 100px;
+    font-size: 9px;
+    color: #757575;
+    flex-shrink: 0;
+  }
+  .info-value {
+    font-size: 9px;
+    font-weight: bold;
+    color: #212121;
+  }
+
+  /* ── Puntuación ─────────────────────────────────────────────── */
+  .score-banner {
+    background: {{ branding.primary_color }};
+    color: {{ branding.secondary_color }};
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .score-label { font-size: 11px; font-weight: bold; }
+  .score-value { font-size: 26px; font-weight: bold; }
+  .score-sub { font-size: 9px; opacity: 0.85; margin-top: 2px; }
+  .score-stats { display: flex; gap: 18px; }
+  .stat-item { text-align: center; }
+  .stat-num { font-size: 14px; font-weight: bold; }
+  .stat-lbl { font-size: 8px; opacity: 0.80; }
+
+  /* ── Tabla de ítems ─────────────────────────────────────────── */
+  .category-section { margin-bottom: 12px; page-break-inside: avoid; }
+  .category-header {
+    background: #f5f5f5;
+    border-left: 3px solid {{ branding.primary_color }};
+    padding: 5px 8px;
+    font-size: 10px;
+    font-weight: bold;
+    color: #424242;
+    margin-bottom: 2px;
+  }
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9px;
+  }
+  .items-table th {
+    background: #fafafa;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 4px 6px;
+    text-align: left;
+    font-weight: bold;
+    color: #616161;
+    text-transform: uppercase;
+    font-size: 8px;
+    letter-spacing: 0.3px;
+  }
+  .items-table td {
+    border-bottom: 1px solid #f5f5f5;
+    padding: 4px 6px;
+    vertical-align: top;
+  }
+  .items-table tr:last-child td { border-bottom: none; }
+  .col-num { width: 28px; color: #9e9e9e; }
+  .col-name { width: auto; }
+  .col-status { width: 70px; }
+  .col-cost { width: 70px; text-align: right; }
+  .col-obs { width: 150px; color: #616161; font-style: italic; }
+
+  .status-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 8px;
+    font-weight: bold;
+  }
+
+  /* ── Observaciones generales ────────────────────────────────── */
+  .observations-section {
+    margin-top: 14px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 10px;
+  }
+  .observations-title {
+    font-size: 10px;
+    font-weight: bold;
+    color: {{ branding.primary_color }};
+    margin-bottom: 6px;
+  }
+  .observations-text {
+    font-size: 9px;
+    color: #424242;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+
+  /* ── Costo total ────────────────────────────────────────────── */
+  .cost-summary {
+    margin-top: 10px;
+    text-align: right;
+    padding-right: 4px;
+  }
+  .cost-label { font-size: 9px; color: #757575; }
+  .cost-value {
+    font-size: 13px;
+    font-weight: bold;
+    color: #c62828;
+  }
+
+  /* ── Firma ──────────────────────────────────────────────────── */
+  .signature-section {
+    margin-top: 18px;
+    display: flex;
+    justify-content: space-between;
+    page-break-inside: avoid;
+  }
+  .signature-box {
+    border-top: 1px solid #bdbdbd;
+    padding-top: 6px;
+    width: 200px;
+    text-align: center;
+    font-size: 9px;
+    color: #757575;
+  }
+  .signature-img {
+    max-height: 50px;
+    margin-bottom: 4px;
+  }
+
+  /* ── Pie de página ──────────────────────────────────────────── */
+  /* ── QR Code ────────────────────────────────────────────────── */
+  .qr-block {
+    text-align: center;
+    margin-top: 6px;
+  }
+  .qr-block img {
+    width: 64px;
+    height: 64px;
+  }
+  .qr-block .qr-label {
+    font-size: 7px;
+    color: #9e9e9e;
+    margin-top: 2px;
+  }
+
+  .footer {
+    margin-top: 18px;
+    border-top: 1px solid #e0e0e0;
+    padding-top: 8px;
+    font-size: 8px;
+    color: #9e9e9e;
+    text-align: center;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Cabecera ─────────────────────────────────────────────── -->
+<div class="header">
+  <div class="header-brand">
+    {% if branding.logo_url %}
+    <img src="{{ branding.logo_url }}" alt="Logo" class="header-logo">
+    {% else %}
+    <div class="brand-name">{{ branding.name }}</div>
+    {% endif %}
+    <div class="brand-contact">
+      {% if branding.address %}{{ branding.address }}<br>{% endif %}
+      {% if branding.phone %}Tel: {{ branding.phone }}  {% endif %}
+      {% if branding.website %}{{ branding.website }}{% endif %}
+    </div>
+  </div>
+  <div class="header-report">
+    <div class="report-title">INFORME DE INSPECCIÓN</div>
+    <div class="report-number">{{ inspection.number }}</div>
+    <div class="report-date">
+      {{ inspection.created_at.strftime('%d/%m/%Y') if inspection.created_at else '' }}
+    </div>
+    <div class="report-date" style="margin-top:4px;">
+      Estado:
+      <strong>
+        {% if inspection.status == 'completed' %}COMPLETADO
+        {% elif inspection.status == 'review' %}EN REVISIÓN
+        {% else %}{{ inspection.status | upper }}{% endif %}
+      </strong>
+    </div>
+    {% if qr_code_b64 %}
+    <div class="qr-block">
+      <img src="data:image/png;base64,{{ qr_code_b64 }}" alt="QR Verificación">
+      <div class="qr-label">Escanear para verificar</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Información de vehículo y cliente ─────────────────────── -->
+<div class="info-grid">
+  <div class="info-box">
+    <div class="info-box-title">Vehículo</div>
+    <div class="info-row">
+      <span class="info-label">Patente</span>
+      <span class="info-value">{{ inspection.vehicle_snapshot.plate }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Marca / Modelo</span>
+      <span class="info-value">
+        {{ inspection.vehicle_snapshot.make }} {{ inspection.vehicle_snapshot.model }}
+      </span>
+    </div>
+    {% if inspection.vehicle_snapshot.year %}
+    <div class="info-row">
+      <span class="info-label">Año</span>
+      <span class="info-value">{{ inspection.vehicle_snapshot.year }}</span>
+    </div>
+    {% endif %}
+    {% if inspection.vehicle_snapshot.color %}
+    <div class="info-row">
+      <span class="info-label">Color</span>
+      <span class="info-value">{{ inspection.vehicle_snapshot.color }}</span>
+    </div>
+    {% endif %}
+    {% if inspection.vehicle_snapshot.vin %}
+    <div class="info-row">
+      <span class="info-label">VIN</span>
+      <span class="info-value">{{ inspection.vehicle_snapshot.vin }}</span>
+    </div>
+    {% endif %}
+    {% if inspection.mileage_at_inspection %}
+    <div class="info-row">
+      <span class="info-label">Kilometraje</span>
+      <span class="info-value">{{ "{:,}".format(inspection.mileage_at_inspection) }} km</span>
+    </div>
+    {% endif %}
+    {% if inspection.fuel_level %}
+    <div class="info-row">
+      <span class="info-label">Combustible</span>
+      <span class="info-value">{{ inspection.fuel_level }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="info-box">
+    {% if inspection.client_snapshot %}
+    <div class="info-box-title">Cliente</div>
+    <div class="info-row">
+      <span class="info-label">Nombre</span>
+      <span class="info-value">{{ inspection.client_snapshot.full_name }}</span>
+    </div>
+    {% if inspection.client_snapshot.rut %}
+    <div class="info-row">
+      <span class="info-label">RUT</span>
+      <span class="info-value">{{ inspection.client_snapshot.rut }}</span>
+    </div>
+    {% endif %}
+    {% if inspection.client_snapshot.email %}
+    <div class="info-row">
+      <span class="info-label">Email</span>
+      <span class="info-value">{{ inspection.client_snapshot.email }}</span>
+    </div>
+    {% endif %}
+    {% if inspection.client_snapshot.phone %}
+    <div class="info-row">
+      <span class="info-label">Teléfono</span>
+      <span class="info-value">{{ inspection.client_snapshot.phone }}</span>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="info-box-title">Inspección</div>
+    {% endif %}
+    <div class="info-row" style="margin-top:6px;">
+      <span class="info-label">Inspector</span>
+      <span class="info-value">{{ inspection.mechanic_id }}</span>
+    </div>
+    {% if inspection.completed_at %}
+    <div class="info-row">
+      <span class="info-label">Completada</span>
+      <span class="info-value">{{ inspection.completed_at.strftime('%d/%m/%Y %H:%M') }}</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Banner de puntuación ──────────────────────────────────── -->
+{% if inspection.score is not none %}
+<div class="score-banner">
+  <div>
+    <div class="score-label">Puntuación General</div>
+    <div class="score-sub">{{ evaluated_items }} puntos evaluados de {{ inspection.total_items }} totales</div>
+  </div>
+  <div class="score-value">{{ "%.1f"|format(inspection.score) }}<span style="font-size:14px;">%</span></div>
+  <div class="score-stats">
+    <div class="stat-item">
+      <div class="stat-num" style="color:#a5d6a7;">{{ inspection.good_items }}</div>
+      <div class="stat-lbl">Buenos</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" style="color:#ffcc80;">{{ inspection.regular_items }}</div>
+      <div class="stat-lbl">Regulares</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" style="color:#ef9a9a;">{{ inspection.bad_items }}</div>
+      <div class="stat-lbl">Deficientes</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" style="color:#e0e0e0;">{{ inspection.na_items }}</div>
+      <div class="stat-lbl">N/A</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Ítems por categoría ───────────────────────────────────── -->
+{% for category in categories %}
+<div class="category-section">
+  <div class="category-header">{{ category.name }}</div>
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th class="col-num">#</th>
+        <th class="col-name">Punto de Inspección</th>
+        <th class="col-status">Estado</th>
+        <th class="col-obs">Observación</th>
+        <th class="col-cost">Costo Rep.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in category.items %}
+      <tr>
+        <td class="col-num">{{ item.order }}</td>
+        <td class="col-name">{{ item.name }}</td>
+        <td class="col-status">
+          <span class="status-badge"
+                style="background:{{ status_bg[item.status] }};
+                       color:{{ status_colors[item.status] }};">
+            {{ status_labels[item.status] }}
+          </span>
+        </td>
+        <td class="col-obs">{{ item.observation or '' }}</td>
+        <td class="col-cost">
+          {% if item.repair_cost %}
+          {{ inspection.currency }} {{ "{:,.0f}".format(item.repair_cost) }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endfor %}
+
+<!-- ── Costo total de reparación ──────────────────────────────── -->
+{% if inspection.total_repair_cost > 0 %}
+<div class="cost-summary">
+  <span class="cost-label">Costo total estimado de reparaciones: </span>
+  <span class="cost-value">
+    {{ inspection.currency }} {{ "{:,.0f}".format(inspection.total_repair_cost) }}
+  </span>
+</div>
+{% endif %}
+
+<!-- ── Observaciones generales ────────────────────────────────── -->
+{% if inspection.general_observations or inspection.recommendations %}
+<div class="observations-section">
+  {% if inspection.general_observations %}
+  <div class="observations-title">Observaciones Generales</div>
+  <div class="observations-text">{{ inspection.general_observations }}</div>
+  {% endif %}
+  {% if inspection.recommendations %}
+  <div class="observations-title" style="margin-top:8px;">Recomendaciones</div>
+  <div class="observations-text">{{ inspection.recommendations }}</div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ── Firma del cliente ──────────────────────────────────────── -->
+{% if inspection.client_signature_url %}
+<div class="signature-section">
+  <div></div>
+  <div class="signature-box">
+    <img src="{{ inspection.client_signature_url }}" alt="Firma" class="signature-img">
+    <div>Firma del cliente</div>
+    {% if inspection.client_snapshot %}
+    <div style="font-weight:bold;color:#212121;">{{ inspection.client_snapshot.full_name }}</div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Pie de página legal ────────────────────────────────────── -->
+<div class="footer">
+  {% if branding.footer_text %}
+  {{ branding.footer_text }}<br>
+  {% else %}
+  Este informe fue generado automáticamente por {{ branding.name }}.
+  Los resultados reflejan el estado del vehículo al momento de la inspección.<br>
+  No constituye garantía ni responsabilidad sobre condiciones posteriores.
+  {% endif %}
+  Informe {{ inspection.number }} &mdash; {{ inspection.created_at.strftime('%d/%m/%Y') if inspection.created_at else '' }}
+</div>
+
+</body>
+</html>

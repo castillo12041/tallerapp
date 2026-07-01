@@ -1,0 +1,66 @@
+version: "3.9"
+
+# ============================================================
+# Taller Inspección — Docker Compose (Desarrollo Local)
+#
+# Uso rápido:
+#   docker-compose up api              # Solo el backend
+#   docker-compose up                  # Todos los servicios
+#   docker-compose down                # Detener y limpiar
+#
+# Variables de entorno: backend/.env (copiar desde backend/.env.example)
+# ============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # FastAPI Backend
+  # Hot reload activado — los cambios en backend/ se reflejan
+  # automáticamente sin reiniciar el contenedor.
+  # ----------------------------------------------------------
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: tallerapp-api
+    image: tallerapp-backend:dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Montar código fuente para hot reload
+      - ./backend/app:/app/app:ro
+    env_file:
+      - ./backend/.env
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+    # Override CMD para hot reload en desarrollo
+    command: >
+      uvicorn app.main:app
+        --host 0.0.0.0
+        --port 8000
+        --reload
+        --reload-dir /app/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    networks:
+      - tallerapp-net
+
+networks:
+  tallerapp-net:
+    driver: bridge
+
+# ============================================================
+# NOTA: Firebase Emulator Suite se inicia por separado.
+# Ver: docs/LOCAL_DEVELOPMENT.md → sección "Firebase Emulator"
+#
+# Comando: firebase emulators:start
+# UI:      http://localhost:4000
+# ============================================================

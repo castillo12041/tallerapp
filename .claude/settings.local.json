@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import json; data = json.load\\(open\\('infra/firebase/firestore.indexes.json'\\)\\); print\\(f'Valid JSON — {len\\(data[\\\\\"indexes\\\\\"]\\)} indexes, {len\\(data[\\\\\"fieldOverrides\\\\\"]\\)} fieldOverrides'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -m py_compile app/core/rbac.py)",
+      "Bash(python -m py_compile app/features/tenants/domain/entities.py)",
+      "Bash(python -m py_compile app/features/tenants/infrastructure/tenant_repository.py)",
+      "Bash(python -m py_compile app/features/tenants/application/use_cases.py)",
+      "Bash(python -m py_compile app/features/tenants/presentation/schemas.py)",
+      "Bash(python -m py_compile app/features/users/domain/entities.py)",
+      "Bash(python -m py_compile app/features/users/infrastructure/user_crud_repository.py)",
+      "Bash(python -m py_compile app/features/users/application/use_cases.py)",
+      "Bash(python -m py_compile app/features/users/presentation/schemas.py)",
+      "Bash(python -m py_compile app/features/users/presentation/router.py)",
+      "Bash(python -m py_compile tests/features/test_tenants.py)",
+      "Bash(python -m py_compile tests/features/test_users.py)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(pip install *)",
+      "Bash(pip show *)",
+      "Bash(where python *)",
+      "Bash(\"C:\\\\Users\\\\bastian\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python39\\\\python.exe\" -m pip install pytest pytest-asyncio httpx)",
+      "Bash(\"C:\\\\Users\\\\bastian\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python39\\\\python.exe\" -m pytest tests/ -v --tb=short)",
+      "Bash(\"C:\\\\Users\\\\bastian\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python39\\\\python.exe\" -m pip install -e \".[dev]\" -q)",
+      "Bash(\"C:\\\\Users\\\\bastian\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python39\\\\python.exe\" -m pip install httpx fastapi pydantic pydantic-settings firebase-admin PyJWT cryptography uvicorn -q)",
+      "Bash(\"C:\\\\Users\\\\bastian\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python39\\\\python.exe\" -m pip install fastapi pydantic pydantic-settings firebase-admin PyJWT cryptography httpx)",
+      "Bash(\"C:\\\\Users\\\\bastian\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python39\\\\python.exe\" -m pip install eval_type_backport -q)",
+      "Bash(where python3.12)",
+      "Bash(where py *)",
+      "Bash(py --list)",
+      "Bash(py -3.13 -m pip install pytest pytest-asyncio httpx fastapi pydantic pydantic-settings firebase-admin PyJWT cryptography -q)",
+      "Bash(py -3.13 -m pytest tests/ -v --tb=short)",
+      "Bash(py -3.13 -m pip install pytest pytest-asyncio httpx)",
+      "Bash(\"C:\\\\Python313\\\\python.exe\" -m pytest tests/ -v --tb=short)",
+      "Bash(\"C:\\\\Python313\\\\python.exe\" -c \"from app.main import app; print\\('OK'\\)\")"
+    ]
+  }
+}

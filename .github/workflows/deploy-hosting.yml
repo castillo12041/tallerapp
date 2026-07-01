@@ -1,0 +1,204 @@
+name: Deploy Hosting
+
+# ============================================================
+# Build y despliega las apps Flutter Web a Firebase Hosting.
+#
+# Targets:
+#   web-cliente → cliente.tallerinspeccion.tapsolutions.cl
+#   web-admin   → admin.tallerinspeccion.tapsolutions.cl  (cuando esté lista)
+#
+# Triggers:
+#   - Push a main cuando cambia apps/ (post-CI)
+#   - Manual con selector de target
+#
+# GitHub Variables requeridas:
+#   GCP_PROJECT_ID
+#   FIREBASE_PROJECT_ID           Ej: taller-85514
+#   API_BASE_URL_PROD             Ej: https://api.tallerinspeccion.tapsolutions.cl
+#
+# GitHub Secrets requeridos:
+#   GCP_WORKLOAD_IDENTITY_PROVIDER
+#   GCP_SERVICE_ACCOUNT
+#   FIREBASE_API_KEY_WEB
+#   FIREBASE_AUTH_DOMAIN
+#   FIREBASE_MESSAGING_SENDER_ID
+#   FIREBASE_APP_ID_CLIENTE
+#   FIREBASE_MEASUREMENT_ID_CLIENTE
+# ============================================================
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/cliente/**"
+      - "apps/web_admin/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/deploy-hosting.yml"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Target a desplegar"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - web-cliente
+          - web-admin
+
+concurrency:
+  group: deploy-hosting-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+
+  # ----------------------------------------------------------
+  # Build y deploy del portal del cliente
+  # ----------------------------------------------------------
+  deploy-cliente:
+    name: "Deploy · Portal Cliente"
+    runs-on: ubuntu-latest
+    environment: production
+
+    permissions:
+      contents: read
+      id-token: write
+
+    # Solo corre si el trigger es push con cambios en cliente,
+    # o si es dispatch con target all/web-cliente
+    if: |
+      github.event_name == 'push' ||
+      github.event.inputs.target == 'all' ||
+      github.event.inputs.target == 'web-cliente'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---- Autenticación GCP (Firebase usa las mismas credenciales) ----
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      # ---- Flutter ----
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        working-directory: apps/cliente
+        run: flutter pub get --suppress-analytics
+
+      - name: Generate code (Freezed / json_serializable)
+        working-directory: apps/cliente
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # ---- Build Flutter Web ----
+      - name: Build Flutter Web — cliente
+        working-directory: apps/cliente
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL_PROD }}
+          ENVIRONMENT: production
+          APP_VERSION: ${{ github.ref_name }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY_WEB }}
+          FIREBASE_AUTH_DOMAIN: ${{ vars.GCP_PROJECT_ID }}.firebaseapp.com
+          FIREBASE_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ vars.GCP_PROJECT_ID }}.appspot.com
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID_CLIENTE }}
+          FIREBASE_MEASUREMENT_ID: ${{ secrets.FIREBASE_MEASUREMENT_ID_CLIENTE }}
+        run: |
+          flutter build web \
+            --dart-define="API_BASE_URL=$API_BASE_URL" \
+            --dart-define="ENVIRONMENT=$ENVIRONMENT" \
+            --dart-define="APP_VERSION=$APP_VERSION" \
+            --dart-define="FIREBASE_API_KEY=$FIREBASE_API_KEY" \
+            --dart-define="FIREBASE_AUTH_DOMAIN=$FIREBASE_AUTH_DOMAIN" \
+            --dart-define="FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID" \
+            --dart-define="FIREBASE_STORAGE_BUCKET=$FIREBASE_STORAGE_BUCKET" \
+            --dart-define="FIREBASE_MESSAGING_SENDER_ID=$FIREBASE_MESSAGING_SENDER_ID" \
+            --dart-define="FIREBASE_APP_ID=$FIREBASE_APP_ID" \
+            --dart-define="FIREBASE_MEASUREMENT_ID=$FIREBASE_MEASUREMENT_ID" \
+            --web-renderer canvaskit \
+            --release
+
+      # ---- Deploy a Firebase Hosting ----
+      - name: Setup Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting — web-cliente
+        run: firebase deploy --only hosting:web-cliente --project ${{ vars.GCP_PROJECT_ID }}
+
+  # ----------------------------------------------------------
+  # Build y deploy del panel administrativo
+  # (solo cuando apps/web_admin esté implementado)
+  # ----------------------------------------------------------
+  deploy-admin:
+    name: "Deploy · Panel Admin"
+    runs-on: ubuntu-latest
+    environment: production
+
+    permissions:
+      contents: read
+      id-token: write
+
+    if: |
+      (github.event_name == 'push' ||
+       github.event.inputs.target == 'all' ||
+       github.event.inputs.target == 'web-admin') &&
+      (github.event_name != 'push' || contains(github.event.commits[0].modified, 'apps/web_admin'))
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Verificar que el directorio existe
+      - name: Check if web_admin is implemented
+        run: |
+          if [[ ! -f "apps/web_admin/pubspec.yaml" ]]; then
+            echo "apps/web_admin/ no está implementado aún — skipping"
+            exit 0
+          fi
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        working-directory: apps/web_admin
+        run: flutter pub get --suppress-analytics
+
+      - name: Build Flutter Web — admin
+        working-directory: apps/web_admin
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL_PROD }}
+          ENVIRONMENT: production
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY_WEB }}
+          FIREBASE_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID_ADMIN }}
+        run: |
+          flutter build web \
+            --dart-define="API_BASE_URL=$API_BASE_URL" \
+            --dart-define="ENVIRONMENT=$ENVIRONMENT" \
+            --dart-define="FIREBASE_API_KEY=$FIREBASE_API_KEY" \
+            --dart-define="FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID" \
+            --dart-define="FIREBASE_APP_ID=$FIREBASE_APP_ID" \
+            --web-renderer canvaskit \
+            --release
+
+      - name: Setup Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting — web-admin
+        run: firebase deploy --only hosting:web-admin --project ${{ vars.GCP_PROJECT_ID }}

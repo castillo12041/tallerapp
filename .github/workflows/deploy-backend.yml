@@ -1,0 +1,156 @@
+name: Deploy Backend
+
+# ============================================================
+# Despliega el backend FastAPI a Google Cloud Run.
+#
+# Triggers:
+#   - Push a main cuando cambia backend/ (post-CI)
+#   - Manual (workflow_dispatch) para deploys de emergencia
+#
+# Prerrequisitos en GCP:
+#   Ver: docs/CI_CD.md → sección "Configuración inicial GCP"
+#
+# GitHub Variables requeridas (Settings → Variables):
+#   GCP_PROJECT_ID             Ej: taller-85514
+#   GCP_REGION                 Ej: us-central1
+#   ARTIFACT_REGISTRY_LOCATION Ej: us-central1
+#   CLOUD_RUN_SERVICE          Ej: tallerapp-api
+#   PUBLIC_BASE_URL            Ej: https://tallerinspeccion.tapsolutions.cl
+#   ALLOWED_ORIGINS            Ej: https://tallerinspeccion.tapsolutions.cl,...
+#
+# GitHub Secrets requeridos (Settings → Secrets):
+#   GCP_WORKLOAD_IDENTITY_PROVIDER  WIF provider URI
+#   GCP_SERVICE_ACCOUNT             SA email para deploy
+# ============================================================
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag de imagen a desplegar (vacío = build nuevo)"
+        required: false
+        default: ""
+
+concurrency:
+  group: deploy-backend-${{ github.ref }}
+  cancel-in-progress: false  # No cancelar deploys en progreso
+
+jobs:
+  deploy:
+    name: "Deploy · Cloud Run"
+    runs-on: ubuntu-latest
+    environment: production
+
+    permissions:
+      contents: read
+      id-token: write  # Requerido para Workload Identity Federation
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---- Autenticación en GCP via Workload Identity Federation ----
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # ---- Build y Push de imagen Docker ----
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker \
+            ${{ vars.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ vars.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/tallerapp/backend:${{ github.sha }}
+            ${{ vars.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/tallerapp/backend:latest
+          cache-from: type=registry,ref=${{ vars.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/tallerapp/backend:cache
+          cache-to: type=registry,ref=${{ vars.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/tallerapp/backend:cache,mode=max
+
+      # ---- Deploy a Cloud Run ----
+      - name: Deploy to Cloud Run
+        run: |
+          IMAGE="${{ vars.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/tallerapp/backend:${{ github.sha }}"
+
+          gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
+            --image "$IMAGE" \
+            --region ${{ vars.GCP_REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8000 \
+            --min-instances 0 \
+            --max-instances 10 \
+            --memory 512Mi \
+            --cpu 1 \
+            --timeout 60s \
+            --concurrency 80 \
+            --set-env-vars "ENVIRONMENT=production" \
+            --set-env-vars "GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}" \
+            --set-env-vars "FIREBASE_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}" \
+            --set-env-vars "FIREBASE_STORAGE_BUCKET=${{ vars.GCP_PROJECT_ID }}.appspot.com" \
+            --set-env-vars "FIREBASE_CREDENTIALS_PATH=/secrets/firebase_credentials.json" \
+            --set-env-vars "PUBLIC_BASE_URL=${{ vars.PUBLIC_BASE_URL }}" \
+            --set-env-vars "ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}" \
+            --set-env-vars "LOG_LEVEL=INFO" \
+            --set-env-vars "DEBUG=false" \
+            --set-env-vars "USE_SECRET_MANAGER=false" \
+            --set-secrets "JWT_SECRET_KEY=taller-jwt-secret-key:latest" \
+            --set-secrets "HMAC_SECRET_KEY=taller-hmac-secret-key:latest" \
+            --set-secrets "/secrets/firebase_credentials.json=taller-firebase-credentials:latest" \
+            --quiet
+
+      # ---- Verificar que el servicio responde ----
+      - name: Verify deployment
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ vars.CLOUD_RUN_SERVICE }} \
+            --region ${{ vars.GCP_REGION }} \
+            --format="value(status.url)")
+
+          echo "Deployed to: $SERVICE_URL"
+
+          # Health check con reintentos
+          for i in 1 2 3; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$SERVICE_URL/api/v1/health")
+            if [[ "$STATUS" == "200" ]]; then
+              echo "✓ Health check passed (HTTP $STATUS)"
+              break
+            fi
+            echo "Attempt $i: HTTP $STATUS — retrying in 10s..."
+            sleep 10
+          done
+
+          if [[ "$STATUS" != "200" ]]; then
+            echo "✗ Health check failed after 3 attempts"
+            exit 1
+          fi
+
+      - name: Print deployment summary
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ vars.CLOUD_RUN_SERVICE }} \
+            --region ${{ vars.GCP_REGION }} \
+            --format="value(status.url)")
+          echo ""
+          echo "  ✓ Deploy completado"
+          echo "  Service URL: $SERVICE_URL"
+          echo "  Image:       ${{ steps.build.outputs.digest }}"
+          echo "  Commit:      ${{ github.sha }}"
+          echo "  Branch:      ${{ github.ref_name }}"

@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "taller-85514",
+    "production": "taller-85514",
+    "staging": "taller-85514-staging"
+  },
+  "targets": {
+    "taller-85514": {
+      "hosting": {
+        "web-admin": ["taller-85514"],
+        "web-cliente": ["taller-cliente-85514"]
+      }
+    }
+  }
+}

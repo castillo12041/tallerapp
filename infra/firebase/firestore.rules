@@ -1,0 +1,335 @@
+rules_version = '2';
+
+// =============================================================================
+// Taller Inspección — Firestore Security Rules
+// Proyecto: taller-85514
+//
+// Modelo de seguridad:
+// - Escrituras críticas van por Firebase Admin SDK (backend) — bypassean estas reglas.
+// - Custom claims (tenantId, role, permissions) son escritos por el backend al login.
+// - NUNCA se permite acceso cross-tenant.
+// - Plantillas del sistema usan tenantId "__system__" y son legibles por cualquier
+//   usuario autenticado para clonarlas al crear un taller.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated()
+        && request.auth.token.get('role', '') == 'superadmin';
+    }
+
+    function getTenantId() {
+      return request.auth.token.get('tenantId', '');
+    }
+
+    function belongsToTenant(tenantId) {
+      return isAuthenticated() && getTenantId() == tenantId;
+    }
+
+    function resourceBelongsToMyTenant() {
+      return isAuthenticated()
+        && resource.data.get('tenantId', '') == getTenantId()
+        && getTenantId() != '';
+    }
+
+    function newDocBelongsToMyTenant() {
+      return isAuthenticated()
+        && request.resource.data.get('tenantId', '') == getTenantId()
+        && getTenantId() != '';
+    }
+
+    function hasAnyRole(roles) {
+      return isAuthenticated()
+        && request.auth.token.get('role', '') in roles;
+    }
+
+    function hasPermission(permission) {
+      return isAuthenticated()
+        && permission in request.auth.token.get('permissions', []);
+    }
+
+    function isOwnerUser(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // =========================================================================
+    // Colecciones globales
+    // =========================================================================
+
+    match /plans/{planId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    match /permissions/{permissionId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    // =========================================================================
+    // Tenants
+    // =========================================================================
+
+    match /tenants/{tenantId} {
+      allow read: if belongsToTenant(tenantId) || isSuperAdmin();
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin()
+        || (belongsToTenant(tenantId) && hasPermission('tenant:manage'));
+      allow delete: if isSuperAdmin();
+    }
+
+    // =========================================================================
+    // Suscripciones — escritura solo backend (webhooks de pago)
+    // =========================================================================
+
+    match /subscriptions/{subscriptionId} {
+      allow read: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasAnyRole(['tenantadmin']));
+      allow write: if false;
+    }
+
+    // =========================================================================
+    // Usuarios
+    // =========================================================================
+
+    match /users/{userId} {
+      allow read: if isSuperAdmin()
+        || isOwnerUser(userId)
+        || (resourceBelongsToMyTenant() && hasPermission('users:read'));
+
+      allow create: if isSuperAdmin()
+        || (newDocBelongsToMyTenant() && hasPermission('users:create'));
+
+      allow update: if isSuperAdmin()
+        || (isOwnerUser(userId)
+            && resourceBelongsToMyTenant()
+            && !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['role', 'tenantId', 'permissions']))
+        || (resourceBelongsToMyTenant() && hasPermission('users:update'));
+
+      allow delete: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('users:delete'));
+    }
+
+    // Refresh tokens — solo el dueño lee; escritura solo backend
+    match /refresh_tokens/{tokenId} {
+      allow read: if isAuthenticated()
+        && resource.data.get('userId', '') == request.auth.uid;
+      allow write: if false;
+    }
+
+    // =========================================================================
+    // Roles
+    // =========================================================================
+
+    match /roles/{roleId} {
+      allow read: if isSuperAdmin()
+        || (isAuthenticated() && resourceBelongsToMyTenant());
+      allow write: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('roles:manage'));
+    }
+
+    // =========================================================================
+    // Clientes
+    // =========================================================================
+
+    match /clients/{clientId} {
+      allow read: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('clients:read'));
+      allow create: if newDocBelongsToMyTenant()
+        && hasPermission('clients:create');
+      allow update: if resourceBelongsToMyTenant()
+        && hasPermission('clients:update');
+      allow delete: if isSuperAdmin();
+    }
+
+    // =========================================================================
+    // Vehículos
+    // =========================================================================
+
+    match /vehicles/{vehicleId} {
+      allow read: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('vehicles:read'));
+      allow create: if newDocBelongsToMyTenant()
+        && hasPermission('vehicles:create');
+      allow update: if resourceBelongsToMyTenant()
+        && hasPermission('vehicles:update');
+      allow delete: if isSuperAdmin();
+    }
+
+    // =========================================================================
+    // Inspecciones
+    // =========================================================================
+
+    match /inspections/{inspectionId} {
+      allow read: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('inspections:read'));
+      allow create: if newDocBelongsToMyTenant()
+        && hasPermission('inspections:create');
+      allow update: if resourceBelongsToMyTenant()
+        && hasPermission('inspections:update');
+      allow delete: if false;
+
+      match /items/{itemId} {
+        allow read: if isSuperAdmin()
+          || (isAuthenticated()
+              && getTenantId() != ''
+              && get(/databases/$(database)/documents/inspections/$(inspectionId)).data.tenantId == getTenantId()
+              && hasPermission('inspections:read'));
+        allow write: if isAuthenticated()
+          && getTenantId() != ''
+          && get(/databases/$(database)/documents/inspections/$(inspectionId)).data.tenantId == getTenantId()
+          && hasPermission('inspections:update');
+      }
+    }
+
+    // Fotos de inspección
+    match /inspection_photos/{photoId} {
+      allow read: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('inspections:read'));
+      allow create: if newDocBelongsToMyTenant()
+        && hasPermission('inspections:update');
+      allow update: if resourceBelongsToMyTenant()
+        && hasPermission('inspections:update');
+      allow delete: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('inspections:update'));
+    }
+
+    // Plantillas de inspección.
+    // Las plantillas del sistema tienen tenantId == "__system__" y son legibles
+    // por cualquier usuario autenticado para poder clonarlas al registrar un taller.
+    match /inspection_templates/{templateId} {
+      allow read: if isAuthenticated()
+        && (
+          isSuperAdmin()
+          || resourceBelongsToMyTenant()
+          || resource.data.get('tenantId', '') == '__system__'
+        );
+      allow write: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('templates:manage'));
+    }
+
+    // =========================================================================
+    // Presupuestos
+    // =========================================================================
+
+    match /estimates/{estimateId} {
+      allow read: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('estimates:read'));
+      allow create: if newDocBelongsToMyTenant()
+        && hasPermission('estimates:create');
+      allow update: if resourceBelongsToMyTenant()
+        && hasPermission('estimates:update');
+      allow delete: if isSuperAdmin();
+    }
+
+    // =========================================================================
+    // Órdenes de trabajo
+    // =========================================================================
+
+    match /work_orders/{orderId} {
+      allow read: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('work_orders:read'));
+      allow create: if newDocBelongsToMyTenant()
+        && hasPermission('work_orders:create');
+      allow update: if resourceBelongsToMyTenant()
+        && hasPermission('work_orders:update');
+      allow delete: if isSuperAdmin();
+    }
+
+    // =========================================================================
+    // Agenda
+    // =========================================================================
+
+    match /calendar_events/{eventId} {
+      allow read: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('calendar:read'));
+      allow create: if newDocBelongsToMyTenant()
+        && hasPermission('calendar:create');
+      allow update: if resourceBelongsToMyTenant()
+        && hasPermission('calendar:update');
+      allow delete: if resourceBelongsToMyTenant()
+        && hasPermission('calendar:delete');
+    }
+
+    // =========================================================================
+    // Notificaciones — cada usuario solo ve y actualiza las suyas
+    // =========================================================================
+
+    match /notifications/{notificationId} {
+      allow read: if isSuperAdmin()
+        || (isAuthenticated()
+            && resourceBelongsToMyTenant()
+            && resource.data.get('userId', '') == request.auth.uid);
+      allow update: if isAuthenticated()
+        && resource.data.get('userId', '') == request.auth.uid
+        && resourceBelongsToMyTenant()
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['read', 'readAt', 'updatedAt']);
+      allow create, delete: if false;
+    }
+
+    // =========================================================================
+    // Audit logs — append-only, inmutable desde clientes
+    // =========================================================================
+
+    match /audit_logs/{logId} {
+      allow read: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('audit:read'));
+      allow write: if false;
+    }
+
+    // =========================================================================
+    // Tokens públicos (QR, informes, presupuestos)
+    // La validación HMAC ocurre en el backend; Firestore solo almacena el estado.
+    // =========================================================================
+
+    match /public_tokens/{tokenId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // =========================================================================
+    // API Keys (plan Enterprise)
+    // =========================================================================
+
+    match /api_keys/{keyId} {
+      allow read: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('api_keys:manage'));
+      allow write: if false;
+    }
+
+    // =========================================================================
+    // Logs de email y WhatsApp
+    // =========================================================================
+
+    match /emails/{emailId} {
+      allow read: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('audit:read'));
+      allow write: if false;
+    }
+
+    match /whatsapp_messages/{messageId} {
+      allow read: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('audit:read'));
+      allow write: if false;
+    }
+
+    // =========================================================================
+    // Webhooks (plan Enterprise)
+    // =========================================================================
+
+    match /webhooks/{webhookId} {
+      allow read: if isSuperAdmin()
+        || (resourceBelongsToMyTenant() && hasPermission('webhooks:manage'));
+      allow write: if resourceBelongsToMyTenant()
+        && hasPermission('webhooks:manage');
+    }
+  }
+}

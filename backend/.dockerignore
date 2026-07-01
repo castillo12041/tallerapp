@@ -1,0 +1,49 @@
+# ============================================================
+# Archivos excluidos del contexto de build Docker
+# ============================================================
+
+# Entorno virtual Python
+.venv/
+venv/
+env/
+
+# Caché Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.log
+
+# Tests y documentación (no van en imagen de producción)
+tests/
+docs/
+
+# Secretos y credenciales — NUNCA deben entrar a la imagen
+.env
+*.env
+firebase_credentials.json
+*service_account*.json
+*serviceAccount*.json
+*firebase-adminsdk*.json
+
+# Herramientas de desarrollo
+requirements-dev.txt
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
