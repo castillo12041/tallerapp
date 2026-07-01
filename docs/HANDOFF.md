@@ -9,10 +9,10 @@
 
 | Campo | Valor |
 |---|---|
-| Fecha | 2026-06-30 |
-| Sesión | Fase 13 — Portal del Cliente |
-| Fase completada | Fase 13 ✅ |
-| Próxima fase | Fase 14 — Agenda |
+| Fecha | 2026-07-01 |
+| Sesión | Fase 14 — Agenda + Deploy producción |
+| Fase completada | Fase 14 ✅ |
+| Próxima fase | Fase 15 — Dashboard y Analytics |
 
 ---
 
@@ -28,6 +28,10 @@
 | Infraestructura — Etapa 3 | ✅ GitHub Actions: ci.yml, deploy-backend.yml, deploy-hosting.yml, CI_CD.md |
 | Infraestructura — Etapa 4 | ✅ GOOGLE_CLOUD.md, FIREBASE.md, DEPLOYMENT.md, DOMAIN_CONFIGURATION.md |
 | Infraestructura — Etapa 5 | ✅ MONITORING.md, SECURITY_CHECKLIST.md, BACKUPS.md, scripts/backup_firestore.sh |
+| Infraestructura — Producción | ✅ GCP + Firebase + Cloud Run + Hosting + DNS configurados |
+| Backend API | ✅ Fases 0–14 completas. 255 tests pasando. |
+| Deploy producción | ✅ `https://api.tallerinspeccion.tapsolutions.cl` |
+| Portal Cliente | ✅ `https://taller-cliente-85514.web.app` |
 
 ---
 
@@ -35,8 +39,9 @@
 
 - **Fases 0–12** ✅ Completas (backend + dominio completo)
 - **Fase 13** ✅ Portal del Cliente — `apps/cliente/` Flutter Web
-- **Fase 14** ⏳ **SIGUIENTE** — Agenda (calendario backend + UI)
-- **Fases 15–21** ⏳ Pendientes
+- **Fase 14** ✅ Agenda — `app/features/appointments/` backend completo
+- **Fase 15** ⏳ **SIGUIENTE** — Dashboard y Analytics
+- **Fases 16–21** ⏳ Pendientes
 
 ---
 

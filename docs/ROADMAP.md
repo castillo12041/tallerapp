@@ -5,7 +5,8 @@
 
 ## Estado actual
 
-**Fase 14 — Agenda** — ⏳ SIGUIENTE
+**Fase 15 — Dashboard y Analytics** — ⏳ SIGUIENTE
+**Fase 14 — Agenda** — ✅ COMPLETADA
 **Fase 13 — Portal del Cliente** — ✅ COMPLETADA
 **Fase 12 — Órdenes de Trabajo** — ✅ COMPLETADA
 **Fase 11 — Presupuestos** — ✅ COMPLETADA

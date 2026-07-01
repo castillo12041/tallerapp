@@ -503,3 +503,5 @@ Ver [ROADMAP.md](ROADMAP.md) para el scope completo de cada fase.
 | 2026-06-30 | Infra E3 | GitHub Actions CI/CD (ci.yml, deploy-backend.yml, deploy-hosting.yml), CI_CD.md | `chore(ci): add github actions workflows for ci and cloud run deploy` |
 | 2026-06-30 | Infra E4 | GOOGLE_CLOUD.md, FIREBASE.md, DEPLOYMENT.md, DOMAIN_CONFIGURATION.md | `docs(infra): add complete cloud, firebase, deployment and domain guides` |
 | 2026-06-30 | Infra E5 | MONITORING.md, SECURITY_CHECKLIST.md, BACKUPS.md, scripts/backup_firestore.sh | `docs(infra): add monitoring, security checklist and backup strategy` |
+| 2026-07-01 | Infra Real | Deploy completo en producción: GCP, Firebase, Cloud Run, Hosting, DNS | `chore(deploy): production infrastructure setup` |
+| 2026-07-01 | Fase 14 | Agenda — Appointment entity, CRUD, workflow, conflicts, availability | `feat(appointments): add agenda feature — Phase 14` |
